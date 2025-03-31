@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Attendance</title>
+    <script defer>
+        let actionType = "";
+        let videoStream;
+
+        function startCamera() {
+            let video = document.getElementById("video");
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    videoStream = stream;
+                    video.srcObject = stream;
+                })
+                .catch(err => console.error("Error accessing camera:", err));
+        }
+
+        function captureImage() {
+            let canvas = document.createElement("canvas");
+            let video = document.getElementById("video");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            return canvas.toDataURL("image/jpeg").split(',')[1];  // Get base64 image data
+        }
+
+        function sendAction(action) {
+            actionType = action;
+            if (action === 'register') {
+                document.getElementById("nameInput").style.display = "block";
+                document.getElementById("captureButton").style.display = "block";
+            } else {
+                processAction();
+            }
+        }
+
+        function processAction() {
+            let imageData = captureImage();
+            let name = actionType === "register" ? document.getElementById("name").value.trim() : "";
+            if (actionType === "register" && !name) {
+                alert("Please enter a name.");
+                return;
+            }
+
+            fetch("/action", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: actionType, name: name, image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message || data.error))
+            .catch(error => console.error("Error:", error));
+        }
+
+        window.onload = startCamera;
+    </script>
+</head>
+<body>
+    <h1>Face Recognition Attendance</h1>
+
+    <video id="video" autoplay></video>
+
+    <br>
+    <button onclick="sendAction('checkin')">Check-in</button>
+    <button onclick="sendAction('checkout')">Check-out</button>
+    <button onclick="sendAction('register')">Register</button>
+
+    <div id="nameInput" style="display: none;">
+        <input type="text" id="name" placeholder="Enter name">
+    </div>
+
+    <button id="captureButton" style="display: none;" onclick="processAction()">Capture & Register</button>
+</body>
+</html>
